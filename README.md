@@ -1,5 +1,4 @@
-# challenge
-Data Science challenge
+# Data Science Game
 
 # External Data
 

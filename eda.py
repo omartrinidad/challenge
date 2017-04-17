@@ -25,7 +25,6 @@ result = table.as_matrix()
 
 plt.bar(ages, result[13:], width=0.5, color='g', align='center')
 plt.bar(ages+0.5, result[:13], width=0.5, color='r', align='center')
-plt.set_yticklabels(ages, minor=False)
 plt.legend(('Is Listened', 'Not Listened'), loc='upper right')
 
 # According to age how much the people skip the song?

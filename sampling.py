@@ -1,13 +1,8 @@
-#import pandas as pd
+import pandas as pd
 
-#dataset = pd.read_csv("data/train.csv")
+df = pd.read_csv("data/train.csv")
 
-#first = dataset.sample(100000)
-#second = dataset.sample(100000)
-
-#first.to_pickle('first.dsg')
-#second.to_pickle('second.dsg')
-
-# how to load them!
-#first = pd.to_pickle('first.dsg')
-#second = pd.to_pickle('second.dsg')
+for i in range(0, 10):
+    train_sample = df.sample(250000)
+    filename = "data/train_sample_" + str(i) + ".csv"
+    train_sample.to_csv(filename, index=False)

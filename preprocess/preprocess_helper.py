@@ -1,8 +1,12 @@
 import pandas as pd
 import preprocess_funcs
 
-def preprocess_default(filename):
-    df = pd.read_csv("../data/"+filename+".csv")
+def preprocess_default(pathname):
+    """
+    Examples:
+        >>> preprocess_default("data/train_sample_0.csv")
+    """
+    df = pd.read_csv(pathname)
     df = preprocess_funcs.add_times2categorical(df)
     df = preprocess_funcs.add_releaseyear(df)
     df = preprocess_funcs.add_ages2categorical(df)
@@ -13,5 +17,3 @@ def preprocess_default(filename):
 
     return df
 
-# Usage
-# preprocess_default("train_sample_0")

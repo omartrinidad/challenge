@@ -10,17 +10,18 @@ import pandas as pd
 import numpy as np
 import matplotlib
 from matplotlib import pyplot as plt
-plt.style.use('seaborn-deep')
+from preprocess import preprocess_helper as helper
+# plt.style.use('seaborn-deep')
 
-# read the serialized sample
-sample = pd.read_pickle('data/first_p.dsg')
+# read the sample
+sample = helper.preprocess_default('data/train_sample_0.csv')
 
 
 def age_skip_song():
     # relationship between age and skip song
     age_listen = sample[['user_age', 'is_listened']]
     ages = age_listen['user_age'].unique()
-    ages.sort_values()
+    ages.sort()
     table = age_listen.groupby(['user_age', 'is_listened']).size()
     table = table.sort_index(level='is_listened')
     result = table.as_matrix()
@@ -61,7 +62,7 @@ def histogram(sample, column_name):
     plt.legend("Title", loc='upper right')
     # plt.xlim(values[0], values[-1])
     plt.show()
-    
+
 
 # histogram(sample, 'release_year')
 # times()

@@ -10,7 +10,7 @@ def preprocess_default(pathname):
     df = preprocess_funcs.add_times2categorical(df)
     df = preprocess_funcs.add_releaseyear(df)
     df = preprocess_funcs.add_ages2categorical(df)
-    df = preprocess_funcs.drop_columns(df, ['ts_listen', 'release_date', 'user_id'])
+    df = preprocess_funcs.drop_columns(df, ['ts_listen', 'release_date'])
 
     # test export!
     # df.to_csv("../data/testhaha.csv", index=False)

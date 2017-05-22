@@ -1,26 +1,22 @@
---.timer on <--- sqlite
 -- genre_id = 0 has a lot of rows!!!
 -- Jaccard Distance
 -- A \intersection B / A \union B
 
 with elements as (
         select genre_id, user_id
-        from songs
-        where is_listened = 0 and (genre_id != 0) and (user_id != 0)
+        from sample_genre
         group by genre_id, user_id
      ),
      genres as (
         select genre_id
-        from songs
-        where is_listened = 0 and (genre_id != 0) and (user_id != 0)
+        from sample_genre
         group by genre_id
      ),
      total as (
         select genre_id, count(user_id) as tot
         from (
             select genre_id, user_id
-            from songs
-            where is_listened = 0 and genre_id != 0 and user_id != 0
+            from sample_genre
             group by genre_id, user_id
         ) as subquery
         group by genre_id
@@ -31,7 +27,8 @@ select alles.set_a,
        t1.tot as cardinality_a,
        t2.tot as cardinality_b
 from
-    (select G1.genre_id as set_a, G2.genre_id as set_b
+    (
+     select G1.genre_id as set_a, G2.genre_id as set_b
      from genres as G1 cross join genres as G2
     ) as alles
     left join

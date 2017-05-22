@@ -29,26 +29,23 @@ def count_users(column):
 
     query = """
         with elements as (
-                select {}, user_id
-                from songs
-                where is_listened = 0 and ({} != 0) and (user_id != 0)
-                group by {}, user_id
+                select {}_id, user_id
+                from sample_{}
+                group by {}_id, user_id
              ),
-             genres as (
-                select {}
-                from songs
-                where is_listened = 0 and ({} != 0) and (user_id != 0)
-                group by {}
+             groups as (
+                select {}_id
+                from sample_{}
+                group by {}_id
              ),
              total as (
-                select {}, count(user_id) as tot
+                select {}_id, count(user_id) as tot
                 from (
-                    select {}, user_id
-                    from songs
-                    where is_listened = 0 and {} != 0 and user_id != 0
-                    group by {}, user_id
+                    select {}_id, user_id
+                    from sample_{}
+                    group by {}_id, user_id
                 ) as subquery
-                group by {}
+                group by {}_id
               )
         select alles.set_a,
                alles.set_b,
@@ -56,26 +53,26 @@ def count_users(column):
                t1.tot as cardinality_a,
                t2.tot as cardinality_b
         from
-            (select G1.{} as set_a, G2.{} as set_b
-             from genres as G1 cross join genres as G2
+            (select G1.{}_id as set_a, G2.{}_id as set_b
+             from groups as G1 cross join groups as G2
             ) as alles
             left join
-            (select A.{} as set_a,
-                    B.{} as set_b,
+            (select A.{}_id as set_a,
+                    B.{}_id as set_b,
                     count(A.user_id) as intersection
             from
                 elements as A inner join elements as B
                 on A.user_id = B.user_id
             group by
-                A.{}, B.{}
+                A.{}_id, B.{}_id
             order by
                 set_a, set_b
             ) as grouped
             on alles.set_a = grouped.set_a and alles.set_b = grouped.set_b
             inner join total t1
-            on t1.{} = alles.set_a
+            on t1.{}_id = alles.set_a
             inner join total t2
-            on t2.{} = alles.set_b
+            on t2.{}_id = alles.set_b
     """.replace("{}", column)
 
     df = pd.read_sql_query(query, engine)

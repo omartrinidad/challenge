@@ -2,7 +2,7 @@ import numpy as np
 import random
 
 
-def kMedoids(D, k, tmax=100):
+def kMedoids(D, k, tmax=100, M=None):
     # determine dimensions of distance matrix D
     m, n = D.shape
 
@@ -10,9 +10,10 @@ def kMedoids(D, k, tmax=100):
         raise Exception('too many medoids')
 
     # randomly initialize an array of k medoid indices
-    M = np.arange(n)
-    np.random.shuffle(M)
-    M = np.sort(M[:k])
+    if M is None:
+        M = np.arange(n)
+        np.random.shuffle(M)
+        M = np.sort(M[:k])
 
     # create a copy of the array of medoid indices
     Mnew = np.copy(M)

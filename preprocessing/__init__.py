@@ -1,4 +1,4 @@
-#import pandas as pd
+import pandas as pd
 import numpy as np
 from datetime import datetime
 fromtimestamp = datetime.fromtimestamp
@@ -46,3 +46,21 @@ def add_releaseyear(dataframe):
 def drop_columns(dataframe, col_names):
     col_indexes = np.nonzero(dataframe.columns.isin(col_names))[0]
     return dataframe.drop(dataframe.columns[col_indexes], axis=1)
+
+
+
+def default(pathname):
+    """
+    Examples:
+        >>> preprocess_default("data/train_sample_0.csv")
+    """
+    df = pd.read_csv(pathname)
+    df = add_times2categorical(df)
+    df = add_releaseyear(df)
+    df = add_ages2categorical(df)
+    df = drop_columns(df, ['ts_listen', 'release_date'])
+
+    # test export!
+    # df.to_csv("../data/testhaha.csv", index=False)
+
+    return df

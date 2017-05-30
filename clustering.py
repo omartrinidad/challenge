@@ -1,5 +1,3 @@
-# https://github.com/letiantian/kmedoids/
-
 import pandas as pd
 import numpy as np
 import pickle
@@ -9,6 +7,7 @@ from sklearn.metrics import silhouette_score, silhouette_samples
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+import preprocessing as pre
 
 
 def generate_distance_matrix(column):
@@ -31,10 +30,24 @@ def load_distance_matrix(column):
     return matrix
 
 
+def get_best_cluster(best_results):
+    """ Warning: buggy code. Auxiliar function to extract the best cluster
+    """
+    best = 0
+    best_cluster = []
+    for best_id in best_results:
+        b = best_results[best_id][0]
+        if b > best:
+            best = b
+            best_cluster = best_results[best_id][1]
+
+    return best_cluster
+
+
 def silhouette_vizualization(matrix, n_clusters, cluster_labels, M):
     """
     """
-            
+
     sample_silhouette_values = silhouette_samples(matrix, cluster_labels,
             metric="precomputed")
 
@@ -127,15 +140,79 @@ generate_distance_matrix("album")
 generate_distance_matrix("artist")
 """
 
-# Get the best possible kmedoids clutering according to Silhuotte
-matrix, elements = load_distance_matrix("genre")
-best_results_genre = cross_validation_kmedoids(matrix, elements)
+# Get the best possible kmedoids clutering according to Silhuotte using cross_validation
 
-matrix, elements = load_distance_matrix("media")
-best_results_media = cross_validation_kmedoids(matrix, elements)
+#matrix, elements = load_distance_matrix("genre")
+#best_results_genre = cross_validation_kmedoids(matrix, elements)
 
-matrix, elements = load_distance_matrix("album")
-best_results_album = cross_validation_kmedoids(matrix, elements)
+#matrix, elements = load_distance_matrix("media")
+#best_results_media = cross_validation_kmedoids(matrix, elements)
 
-matrix, elements = load_distance_matrix("artist")
-best_results_artist = cross_validation_kmedoids(matrix, elements)
+#matrix, elements = load_distance_matrix("album")
+#best_results_album = cross_validation_kmedoids(matrix, elements)
+
+#matrix, elements = load_distance_matrix("artist")
+#best_results_artist = cross_validation_kmedoids(matrix, elements)
+
+# modify_id_columns(dataset)
+
+
+dataset = pre.default("data/train_sample_0.csv")
+df = dataset
+
+# delete rows genre_id == 0
+df = df.drop(df[df.genre_id == 0].index)
+# delete rows user_id == 0
+df = df.drop(df[df.user_id == 0].index)
+
+#matrix_media,  elements_media = load_distance_matrix("media")
+#matrix_album,  elements_album = load_distance_matrix("album")
+#matrix_artist, elements_artis = load_distance_matrix("artist")
+
+# the kernels that were trained
+kernels = pickle.load(open("kernels.dsg", "rb"))
+
+# columns = ['genre', 'media', 'album', 'artist']
+# columns = ['genre']
+
+for column in [kernels.keys()[0]]:
+    ker = kernels[column]
+    matrix, elements = load_distance_matrix(column)
+    medoids, clusters = kMedoids(matrix, len(ker), tmax=20, M=ker)
+
+    # new column
+    df[column] = -1
+
+    # classify the elements according to the clusters
+    for c in clusters:
+        ids = clusters[c]
+        indexes = df[df[column + '_id'].isin(ids)].index
+        df.loc[indexes][column + '_id']
+        df.set_value(indexes, column, c)
+
+    # classify the remaining elements [-1]
+    indexes = df[df[column] == -1].index
+
+    # unknown ids
+    unknown_ids = df.loc[indexes][column + '_id']
+    unknown_ids = unknown_ids.drop_duplicates()
+    unknown_ids = unknown_ids.tolist()
+    unknown_ids = ", ".join(str(x) for x in unknown_ids)
+
+    jacc = distance_for_new_elements(clusters, column, unknown_ids)
+    jacc["jaccard"] = 1 - jacc["intersection"] / (jacc["cardinality_kernel"]
+            + jacc["cardinality_element"] - jacc["intersection"])
+
+    idx = jacc.groupby(["genre_id"])["jaccard"].transform(min) ==\
+            jacc["jaccard"]
+
+    resumen = jacc[idx][['kernel', 'genre_id']]
+    kers = resumen["kernel"].drop_duplicates().tolist()
+
+    # classify the new elements according to closer cluster
+    for k in kers:
+        ids = resumen[resumen["kernel"] == k]['genre_id'].tolist()
+        indexes = df[df[column + '_id'].isin(ids)].index
+        df.loc[indexes][column + '_id']
+        df.set_value(indexes, column, k)
+

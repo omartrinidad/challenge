@@ -22,6 +22,107 @@ except ValueError as e:
     print(e)
 
 
+def distance_for_new_elements(clusters, column, unknown_ids):
+    """
+    This function returns a number of users that decided to hear the song, with
+    unseen elements in the other cluster
+    """
+
+    # generate query string
+    querito = ""
+    first_block = []
+
+    for c in clusters:
+        elements = ", ".join(str(x) for x in clusters[c])
+        kernel = """(select []_id, {} as kernel, user_id
+            from songs
+            where []_id in ({})
+                  and genre_id != 0 and user_id != 0
+            group by []_id, user_id, kernel
+            order by []_id, user_id)""".replace("[]", column)
+        kernel = kernel.format(c, elements)
+        first_block.append(kernel)
+
+
+    first_block = "\nunion all\n".join(str(x) for x in first_block)
+    centers = ", ".join(str(x) for x in clusters.keys())
+
+
+    second_block = """
+                    mykernels as (
+                        select center
+                        from centers
+                        where center in ({})
+                    ),
+                    elements as (
+                        select []_id
+                        from songs
+                        where genre_id != 0 and user_id != 0 and []_id in ({})
+                        group by []_id
+                    ),
+                    elements_users as (
+                        select genre_id, user_id
+                        from songs
+                        where genre_id != 0 and user_id != 0 and []_id in ({})
+                        group by []_id, user_id
+                    ),
+                    total_kernel as (
+                       select kernel, count(user_id) as tot
+                       from kernels
+                       group by kernel
+                    ),
+                    total_elements as (
+                       select []_id, count(user_id) as tot
+                       from elements_users
+                       group by []_id
+                    )
+                select
+                    alles.kernel,
+                    alles.[]_id,
+                    coalesce(intersection, 0) as intersection,
+                    t1.tot as cardinality_kernel,
+                    t2.tot as cardinality_element
+                from (
+                        select mykernels.center as kernel, elements.[]_id as []_id
+                        from mykernels cross join elements
+                    ) as alles
+                    left join
+                    (
+                        select
+                            []_id,
+                            kernel,
+                            count(intersection) as intersection
+                        from (
+                            select
+                                elements_users.[]_id,
+                                kernels.kernel,
+                                count(elements_users.user_id) as intersection
+                            from
+                                kernels inner join elements_users
+                            on
+                                kernels.user_id = elements_users.user_id
+                            group by
+                                kernels.kernel, elements_users.[]_id, elements_users.user_id
+                            order by
+                                kernels.kernel, elements_users.[]_id, elements_users.user_id
+                        ) as gr
+                        group by kernel, []_id
+                    ) as grouped
+                on alles.kernel = grouped.kernel and alles.[]_id = grouped.[]_id
+                inner join total_kernel t1
+                on t1.kernel = alles.kernel
+                inner join total_elements t2
+                on t2.[]_id = alles.[]_id
+                """.format(centers, unknown_ids, unknown_ids).replace("[]", column)
+
+    query = """with kernels as ( {} ), {}""".format(first_block, second_block)
+
+    df = pd.read_sql_query(query, engine)
+    jaccard = 1 - df["intersection"] / (df["cardinality_kernel"] + df["cardinality_element"] - df["intersection"])
+    return df
+
+
+
 def count_users(column):
     """
     This function returns a number of users that decided to hear the song
@@ -76,6 +177,7 @@ def count_users(column):
     """.replace("{}", column)
 
     df = pd.read_sql_query(query, engine)
+
     jaccard = 1 - df["intersection"] / (df["cardinality_a"] + df["cardinality_b"] - df["intersection"])
     size = int(np.sqrt(jaccard.size))
     matrix = np.reshape(jaccard, (size, size))

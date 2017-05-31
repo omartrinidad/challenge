@@ -156,55 +156,85 @@ generate_distance_matrix("artist")
 # modify_id_columns(dataset)
 
 
-df = pre.default("data/train_sample_0.csv")
+def cluster_preprocessing(df):
+    """
+    Preprocess the id columns
+    """
+    # Ignoring zeros was an error :(
+    # delete rows genre_id == 0
+    # df = df.drop(df[df.genre_id == 0].index)
+    # delete rows user_id == 0
+    # df = df.drop(df[df.user_id == 0].index)
 
-# delete rows genre_id == 0
-df = df.drop(df[df.genre_id == 0].index)
-# delete rows user_id == 0
-df = df.drop(df[df.user_id == 0].index)
+    # the kernels that were trained with
+    kernels = pickle.load(open("kernels.dsg", "rb"))
 
-# the kernels that were trained
-kernels = pickle.load(open("kernels.dsg", "rb"))
+    # two columns were failing :(
+    # for column in columns:
+    for column in kernels.keys():
+        ker = kernels[column]
+        matrix, elements = load_distance_matrix(column)
+        medoids, clusters = kMedoids(matrix, len(ker), tmax=2, M=ker)
 
-# for column in columns:
-for column in kernels.keys():
-    ker = kernels[column]
-    matrix, elements = load_distance_matrix(column)
-    medoids, clusters = kMedoids(matrix, len(ker), tmax=2, M=ker)
+        # new column
+        df[column] = -1
 
-    # new column
-    df[column] = -1
+        # classify the elements according to the clusters
+        for c in clusters:
+            ids = clusters[c]
+            indexes = df[df[column + '_id'].isin(ids)].index
+            df.loc[indexes][column + '_id']
+            df.set_value(indexes, column, c)
 
-    # classify the elements according to the clusters
-    for c in clusters:
-        ids = clusters[c]
-        indexes = df[df[column + '_id'].isin(ids)].index
-        df.loc[indexes][column + '_id']
-        df.set_value(indexes, column, c)
+        # classify the remaining elements [-1]
+        indexes = df[df[column] == -1].index
 
-    # classify the remaining elements [-1]
-    indexes = df[df[column] == -1].index
+        # unknown ids
+        unknown_ids = df.loc[indexes][column + '_id']
+        unknown_ids = unknown_ids.drop_duplicates()
+        unknown_ids = unknown_ids.tolist()
+        unknown_ids = ", ".join(str(x) for x in unknown_ids)
 
-    # unknown ids
-    unknown_ids = df.loc[indexes][column + '_id']
-    unknown_ids = unknown_ids.drop_duplicates()
-    unknown_ids = unknown_ids.tolist()
-    unknown_ids = ", ".join(str(x) for x in unknown_ids)
+        jacc = distance_for_new_elements(clusters, column, unknown_ids)
+        jacc["jaccard"] = 1 - jacc["intersection"] / (jacc["cardinality_kernel"]
+                + jacc["cardinality_element"] - jacc["intersection"])
 
-    jacc = distance_for_new_elements(clusters, column, unknown_ids)
-    jacc["jaccard"] = 1 - jacc["intersection"] / (jacc["cardinality_kernel"]
-            + jacc["cardinality_element"] - jacc["intersection"])
+        idx = jacc.groupby([column + "_id"])["jaccard"].transform(min) ==\
+                jacc["jaccard"]
 
-    idx = jacc.groupby([column + "_id"])["jaccard"].transform(min) ==\
-            jacc["jaccard"]
+        resumen = jacc[idx][['kernel', column + '_id']]
+        kers = resumen["kernel"].drop_duplicates().tolist()
 
-    resumen = jacc[idx][['kernel', column + '_id']]
-    kers = resumen["kernel"].drop_duplicates().tolist()
+        # classify the new elements according to closer cluster
+        for k in kers:
+            ids = resumen[resumen["kernel"] == k][column + '_id'].tolist()
+            indexes = df[df[column + '_id'].isin(ids)].index
+            df.loc[indexes][column + '_id']
+            df.set_value(indexes, column, k)
 
-    # classify the new elements according to closer cluster
-    for k in kers:
-        ids = resumen[resumen["kernel"] == k][column + '_id'].tolist()
-        indexes = df[df[column + '_id'].isin(ids)].index
-        df.loc[indexes][column + '_id']
-        df.set_value(indexes, column, k)
+    return df
+
+
+
+testdf = pre.default("data/test.csv")
+del testdf["ages_cat"]
+del testdf["release_year"]
+
+# df = pickle.load(open("dataset_two.ds", "rb"))
+
+test = cluster_preprocessing(testdf)
+# delete some columns
+# bad processed :(
+del test['media']
+del test['album']
+
+# not needed anymore :)
+del test['media_id']
+del test['genre_id']
+del test['album_id']
+del test['artist_id']
+del test['user_id']
+
+
+
 

@@ -3,7 +3,11 @@ import numpy as np
 import pickle
 from kmedoids import *
 from sql import *
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import silhouette_score, silhouette_samples
+from xgboost import XGBClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.preprocessing import normalize
 
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -161,17 +165,21 @@ def cluster_preprocessing(df):
     Preprocess the id columns
     """
     # Ignoring zeros was an error :(
+    # Not at all
+
     # delete rows genre_id == 0
-    # df = df.drop(df[df.genre_id == 0].index)
+    df = df.drop(df[df.genre_id == 0].index)
+
     # delete rows user_id == 0
-    # df = df.drop(df[df.user_id == 0].index)
+    df = df.drop(df[df.user_id == 0].index)
 
     # the kernels that were trained with
     kernels = pickle.load(open("kernels.dsg", "rb"))
 
     # two columns were failing :(
     # for column in columns:
-    for column in kernels.keys():
+    #for column in kernels.keys():
+    for column in ["genre", "artist"]:
         ker = kernels[column]
         matrix, elements = load_distance_matrix(column)
         medoids, clusters = kMedoids(matrix, len(ker), tmax=2, M=ker)
@@ -215,26 +223,59 @@ def cluster_preprocessing(df):
     return df
 
 
+# testdf = pre.default("data/test.csv")
+#del testdf["ages_cat"]
+#del testdf["release_year"]
 
-testdf = pre.default("data/test.csv")
-del testdf["ages_cat"]
-del testdf["release_year"]
+#df = pickle.load(open("dataset_two.ds", "rb"))
 
-# df = pickle.load(open("dataset_two.ds", "rb"))
+df = pre.default("data/train_sample_8.csv")
+segundo_df = cluster_preprocessing(df)
 
-test = cluster_preprocessing(testdf)
-# delete some columns
-# bad processed :(
-del test['media']
-del test['album']
-
-# not needed anymore :)
-del test['media_id']
-del test['genre_id']
-del test['album_id']
-del test['artist_id']
-del test['user_id']
+df = pre.default("data/train_sample_9.csv")
+tercero_df = cluster_preprocessing(df)
 
 
+def preprocess_zeros_test(test, alles):
+    """
+    """
+
+    zeros = alles.loc[alles["genre_id"] == 0]
+    no_zeros = alles.loc[alles["genre_id"] != 0]
+
+    y = no_zeros["genre_id"]
+    del no_zeros["genre_id"]
+    x = no_zeros
+
+    seed = 7
+    test_size = 0.33
+    X_train, X_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=seed)
+
+    # fit model no training data
+    model = XGBClassifier()
+    model.fit(X_train, y_train)
+
+    y = zeros["genre_id"]
+    del zeros["genre_id"]
+    x = zeros
+
+    # make predictions for test data
+    pred = model.predict(X)
+    predictions = [round(value) for value in pred]
+
+    # evaluate predictions
+    accuracy = accuracy_score(y_test, predictions)
+    print("Accuracy: %.2f%%" % (accuracy * 100.0))
 
 
+x, y = preprocess_zeros_test(testdf, testdf)
+model = XGBClassifier()
+model.fit(X_train, y_train)
+
+# make predictions for test data
+y_pred = model.predict(X_test)
+predictions = [round(value) for value in y_pred]
+
+# evaluate predictions
+accuracy = accuracy_score(y_test, predictions)
+print("Accuracy: %.2f%%" % (accuracy * 100.0))

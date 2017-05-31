@@ -61,7 +61,7 @@ def distance_for_new_elements(clusters, column, unknown_ids):
                         group by []_id
                     ),
                     elements_users as (
-                        select genre_id, user_id
+                        select []_id, user_id
                         from songs
                         where genre_id != 0 and user_id != 0 and []_id in ({})
                         group by []_id, user_id

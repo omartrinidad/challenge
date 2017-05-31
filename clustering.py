@@ -131,7 +131,6 @@ def cross_validation_kmedoids(matrix, elements):
     return best_results
 
 
-
 # load (or generate) distance matrix
 """
 generate_distance_matrix("genre")
@@ -157,28 +156,21 @@ generate_distance_matrix("artist")
 # modify_id_columns(dataset)
 
 
-dataset = pre.default("data/train_sample_0.csv")
-df = dataset
+df = pre.default("data/train_sample_0.csv")
 
 # delete rows genre_id == 0
 df = df.drop(df[df.genre_id == 0].index)
 # delete rows user_id == 0
 df = df.drop(df[df.user_id == 0].index)
 
-#matrix_media,  elements_media = load_distance_matrix("media")
-#matrix_album,  elements_album = load_distance_matrix("album")
-#matrix_artist, elements_artis = load_distance_matrix("artist")
-
 # the kernels that were trained
 kernels = pickle.load(open("kernels.dsg", "rb"))
 
-# columns = ['genre', 'media', 'album', 'artist']
-# columns = ['genre']
-
-for column in [kernels.keys()[0]]:
+# for column in columns:
+for column in kernels.keys():
     ker = kernels[column]
     matrix, elements = load_distance_matrix(column)
-    medoids, clusters = kMedoids(matrix, len(ker), tmax=20, M=ker)
+    medoids, clusters = kMedoids(matrix, len(ker), tmax=2, M=ker)
 
     # new column
     df[column] = -1
@@ -203,15 +195,15 @@ for column in [kernels.keys()[0]]:
     jacc["jaccard"] = 1 - jacc["intersection"] / (jacc["cardinality_kernel"]
             + jacc["cardinality_element"] - jacc["intersection"])
 
-    idx = jacc.groupby(["genre_id"])["jaccard"].transform(min) ==\
+    idx = jacc.groupby([column + "_id"])["jaccard"].transform(min) ==\
             jacc["jaccard"]
 
-    resumen = jacc[idx][['kernel', 'genre_id']]
+    resumen = jacc[idx][['kernel', column + '_id']]
     kers = resumen["kernel"].drop_duplicates().tolist()
 
     # classify the new elements according to closer cluster
     for k in kers:
-        ids = resumen[resumen["kernel"] == k]['genre_id'].tolist()
+        ids = resumen[resumen["kernel"] == k][column + '_id'].tolist()
         indexes = df[df[column + '_id'].isin(ids)].index
         df.loc[indexes][column + '_id']
         df.set_value(indexes, column, k)
